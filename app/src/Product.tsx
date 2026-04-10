@@ -26,6 +26,8 @@ function Product() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isExpandedSynopsis, setIsExpandedSynopsis] = useState(false)
+  const [quantity, setQuantity] = useState(1)
+  const [addingToCart, setAddingToCart] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -69,6 +71,50 @@ function Product() {
         setLoading(false)
       })
   }, [id])
+
+  const handleAddToCart = async () => {
+    if (!product) return
+
+    try {
+      setAddingToCart(true)
+
+      // Hacer POST a /shop/cart/update_json (ruta nativa de Odoo)
+      const formData = new URLSearchParams()
+      formData.append('product_id', product.id.toString())
+      formData.append('add_qty', quantity.toString())
+
+      const response = await fetch('/shop/cart/update_json', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      })
+
+      if (response.ok) {
+        // Éxito: Mostrar Toast y resetear cantidad
+        if (window.showToast) {
+          window.showToast(
+            `${product.name} añadido al carrito (${quantity} unidad${quantity > 1 ? 'es' : ''})`,
+            'success',
+            3000
+          )
+        }
+        setQuantity(1)
+      } else {
+        throw new Error(`Error HTTP: ${response.status}`)
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
+      console.error('❌ Error al añadir al carrito:', errorMsg)
+
+      if (window.showToast) {
+        window.showToast(`Error al añadir al carrito: ${errorMsg}`, 'error', 4000)
+      }
+    } finally {
+      setAddingToCart(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -201,9 +247,43 @@ function Product() {
             </div>
 
             {/* Botón Añadir al Carrito */}
-            <button className="w-full bg-black text-white font-bold py-3 rounded-full hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 mb-6">
+            <button
+              onClick={handleAddToCart}
+              disabled={addingToCart}
+              className="w-full bg-black text-white font-bold py-3 rounded-full hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 mb-6"
+            >
               <ShoppingCart className="w-5 h-5" />
+              <span>{addingToCart ? 'Añadiendo...' : 'Añadir al Carrito'}</span>
             </button>
+
+            {/* Selector de Cantidad */}
+            <div className="flex items-center justify-between bg-gray-100 rounded-lg p-3 mb-6">
+              <span className="text-sm font-medium text-gray-700">Cantidad:</span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1 || addingToCart}
+                  className="w-8 h-8 bg-white text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors flex items-center justify-center font-bold"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  disabled={addingToCart}
+                  className="w-12 text-center font-semibold bg-white border border-gray-300 rounded-lg p-1 disabled:opacity-50"
+                />
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  disabled={addingToCart}
+                  className="w-8 h-8 bg-white text-gray-800 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors flex items-center justify-center font-bold"
+                >
+                  +
+                </button>
+              </div>
+            </div>
 
             {/* Info de Disponibilidad */}
             <div className="space-y-4">

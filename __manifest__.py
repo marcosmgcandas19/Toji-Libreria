@@ -17,6 +17,7 @@ Módulo que extiende el modelo de productos para crear un sistema de gestión de
     'depends': [
         'base',
         'product',
+        'website_sale',
     ],
 
     'data': [

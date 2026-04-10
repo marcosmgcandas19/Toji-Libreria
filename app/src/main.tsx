@@ -6,6 +6,7 @@ import Header from './Header.tsx'
 import Footer from './Footer.tsx'
 import ProductCarousel from './ProductCarousel.tsx'
 import Product from './Product.tsx'
+import { ToastContainer } from './ToastContainer.tsx'
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,12 +30,15 @@ function HomePage() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout children={<HomePage />} />} />
-        <Route path="/product/:id" element={<Layout children={<Product />} />} />
-      </Routes>
-    </BrowserRouter>
+    <>
+      <ToastContainer />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout children={<HomePage />} />} />
+          <Route path="/product/:id" element={<Layout children={<Product />} />} />
+        </Routes>
+      </BrowserRouter>
+    </>
   )
 }
 

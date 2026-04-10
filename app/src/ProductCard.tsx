@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 
 interface ProductCardProps {
   id?: number
@@ -8,6 +9,47 @@ interface ProductCardProps {
 }
 
 function ProductCard({ id, nombre, precio, imagen }: ProductCardProps) {
+  const [addingToCart, setAddingToCart] = useState(false)
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!id) return
+
+    try {
+      setAddingToCart(true)
+
+      const formData = new URLSearchParams()
+      formData.append('product_id', id.toString())
+      formData.append('add_qty', '1')
+
+      const response = await fetch('/shop/cart/update_json', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      })
+
+      if (response.ok) {
+        if (window.showToast) {
+          window.showToast(`${nombre} añadido al carrito`, 'success', 3000)
+        }
+      } else {
+        throw new Error(`Error HTTP: ${response.status}`)
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
+      console.error('❌ Error al añadir al carrito:', errorMsg)
+
+      if (window.showToast) {
+        window.showToast(`Error al añadir al carrito`, 'error', 4000)
+      }
+    } finally {
+      setAddingToCart(false)
+    }
+  }
   const cardContent = (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden 
     hover:shadow-2xl transition-shadow duration-300 w-full border-black border-2 flex flex-col items-center cursor-pointer h-full">
@@ -35,8 +77,9 @@ function ProductCard({ id, nombre, precio, imagen }: ProductCardProps) {
             {precio.toFixed(2)} €
           </span>
           <button 
-            onClick={(e) => e.preventDefault()}
-            className="bg-black text-white rounded-full px-10 py-4 hover:bg-gray-800 transition-colors duration-200 flex items-center justify-center shrink-0">
+            onClick={handleAddToCart}
+            disabled={addingToCart || !id}
+            className="bg-black text-white rounded-full px-10 py-4 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center shrink-0">
             <svg
               className="w-7 h-7"
               fill="none"
