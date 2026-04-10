@@ -1,4 +1,7 @@
+import { useNavigate } from 'react-router-dom'
+
 function Header() {
+  const navigate = useNavigate()
   return (
 
 
@@ -49,7 +52,7 @@ function Header() {
           </button>
 
           {/* Carrito */}
-          <button className="hover:text-gray-300 transition relative" title="Carrito">
+          <button onClick={() => navigate('/cart')} className="hover:text-gray-300 transition relative" title="Carrito">
             <svg
               className="w-5 h-5"
               fill="none"

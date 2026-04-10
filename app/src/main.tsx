@@ -7,6 +7,7 @@ import Footer from './Footer.tsx'
 import ProductCarousel from './ProductCarousel.tsx'
 import Product from './Product.tsx'
 import { ToastContainer } from './ToastContainer.tsx'
+import Cart from './Cart.tsx'
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -36,6 +37,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout children={<HomePage />} />} />
           <Route path="/product/:id" element={<Layout children={<Product />} />} />
+          <Route path="/cart" element={<Layout children={<Cart />} />} />
         </Routes>
       </BrowserRouter>
     </>
