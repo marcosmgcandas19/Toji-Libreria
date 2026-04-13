@@ -199,7 +199,11 @@ class TojiProductAPI(http.Controller):
             add_qty = request_data.get('add_qty', 1)
             set_qty = request_data.get('set_qty')
             
-            print(f"[DEBUG] add_to_cart recibido: product_id={product_id}, add_qty={add_qty}")
+            # Logging detallado
+            if set_qty is not None:
+                print(f"[ACTUALIZACIÓN] Establecer cantidad: product_id={product_id}, set_qty={set_qty}")
+            else:
+                print(f"[AGREGAR] Añadir cantidad: product_id={product_id}, add_qty={add_qty}")
             
             if not product_id:
                 response_data = {'success': False, 'error': 'product_id es requerido'}
@@ -379,10 +383,41 @@ class TojiProductAPI(http.Controller):
             elif product.product_tmpl_id.image_1920:
                 image_url = f"/web/image/product.template/{product.product_tmpl_id.id}/image_1920"
             
+            # Obtener autores del libro
+            authors_str = ''
+            try:
+                # Obtener el template con acceso sin restricciones
+                template = product.product_tmpl_id.sudo()
+                
+                # Intentar acceder directamente al campo author_ids
+                if template and hasattr(template, 'author_ids'):
+                    author_ids = template.author_ids
+                    if author_ids:
+                        # Construir string de autores
+                        author_names = [str(author.name) if author.name else 'Sin nombre' for author in author_ids]
+                        authors_str = ', '.join(author_names)
+                        print(f"[DEBUG] Autores de '{product.name}': {authors_str}")
+                    else:
+                        print(f"[DEBUG] '{product.name}' no tiene autores asignados (author_ids vacío)")
+                else:
+                    print(f"[DEBUG] No se pudo acceder a author_ids en '{product.name}'")
+                    # Intentar alternativa: leer directamente
+                    try:
+                        author_data = template.read(['author_ids'])
+                        print(f"[DEBUG] author_data via read(): {author_data}")
+                    except Exception as read_err:
+                        print(f"[DEBUG] Error al leer author_ids: {str(read_err)}")
+                        
+            except Exception as e:
+                print(f"[DEBUG] Error al obtener autores de {product.name}: {type(e).__name__}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+            
             lines_data.append({
                 'id': line.id,
                 'product_id': product.id,
                 'product_name': product.name,
+                'authors': authors_str,
                 'quantity': float(line.product_uom_qty),
                 'price_unit': float(line.price_unit),
                 'price_subtotal': float(line.price_subtotal),

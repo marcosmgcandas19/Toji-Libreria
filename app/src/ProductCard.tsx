@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
+import { useCart } from './context/CartContext'
 
 interface ProductCardProps {
   id?: number
@@ -10,6 +11,7 @@ interface ProductCardProps {
 
 function ProductCard({ id, nombre, precio, imagen }: ProductCardProps) {
   const [addingToCart, setAddingToCart] = useState(false)
+  const { addToCartCount } = useCart()
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -62,6 +64,10 @@ function ProductCard({ id, nombre, precio, imagen }: ProductCardProps) {
       // Verificar si fue exitoso
       if (data.success) {
         console.log('✅ ¡Producto añadido al carrito!')
+        
+        // Actualizar contador del carrito
+        addToCartCount(1)
+        
         if (window.showToast) {
           window.showToast(
             `${nombre} añadido al carrito`,

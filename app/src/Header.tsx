@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom'
+import { useCart } from './context/CartContext'
 
 function Header() {
   const navigate = useNavigate()
+  const { cartCount } = useCart()
+
   return (
 
 
@@ -66,9 +69,11 @@ function Header() {
                 d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2 9m10 0l2-9m-10 9h12m0 0H9"
               />
             </svg>
-            <span className="absolute -top-2 -right-2 bg-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
-              0
-            </span>
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                {cartCount}
+              </span>
+            )}
           </button>
 
           {/* Perfil */}

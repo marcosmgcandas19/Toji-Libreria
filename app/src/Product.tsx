@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShoppingCart, Home, Store, Truck } from 'lucide-react'
 import { Chip, Card } from '@heroui/react'
+import { useCart } from './context/CartContext'
 
 interface Author {
   id: number
@@ -28,6 +29,7 @@ function Product() {
   const [isExpandedSynopsis, setIsExpandedSynopsis] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [addingToCart, setAddingToCart] = useState(false)
+  const { addToCartCount } = useCart()
 
   useEffect(() => {
     if (!id) return
@@ -97,7 +99,10 @@ function Product() {
       const data = await response.json()
 
       if (data.success) {
-        // Éxito: Mostrar Toast y resetear cantidad
+        // Éxito: Actualizar contador del carrito
+        addToCartCount(quantity)
+        
+        // Mostrar Toast y resetear cantidad
         if (window.showToast) {
           window.showToast(
             `${product.name} añadido al carrito (${quantity} unidad${quantity > 1 ? 'es' : ''})`,
