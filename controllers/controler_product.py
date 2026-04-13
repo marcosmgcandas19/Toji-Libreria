@@ -224,16 +224,41 @@ class TojiProductAPI(http.Controller):
                 headers = {'Content-Type': 'application/json'}
                 return request.make_response(json.dumps(response_data), headers=headers)
             
-            # Obtener o crear el carrito
-            order = website.sale_get_order(force_create=True)
-            if not order:
-                raise Exception("No se pudo crear o recuperar el pedido de venta")
+            # USAR ORM DIRECTAMENTE EN LUGAR DE website.sale_get_order()
+            # Obtener o crear orden de carrito
+            sale_order_id = request.session.get('sale_order_id')
+            order = None
             
-            # Actualizar carrito
-            if set_qty is not None:
-                order._cart_update(product_id=int(product_id), set_qty=float(set_qty))
+            if sale_order_id:
+                order = request.env['sale.order'].sudo().browse(sale_order_id)
+                if not order.exists() or order.state != 'draft':
+                    order = None
+            
+            if not order:
+                # Crear nueva orden
+                order = request.env['sale.order'].sudo().create({
+                    'partner_id': request.env.ref('base.public_partner').id,
+                    'website_id': website.id,
+                    'state': 'draft',
+                })
+                request.session['sale_order_id'] = order.id
+            
+            # Actualizar o crear línea
+            existing_line = order.order_line.filtered(lambda x: x.product_id.id == int(product_id))
+            
+            if existing_line:
+                if set_qty is not None:
+                    existing_line.write({'product_uom_qty': float(set_qty)})
+                else:
+                    existing_line.write({'product_uom_qty': existing_line.product_uom_qty + float(add_qty)})
             else:
-                order._cart_update(product_id=int(product_id), add_qty=float(add_qty))
+                order.write({
+                    'order_line': [(0, 0, {
+                        'product_id': int(product_id),
+                        'product_uom_qty': float(set_qty if set_qty is not None else add_qty),
+                        'product_uom': product.uom_id.id,
+                    })]
+                })
             
             # Retornar carrito actualizado
             cart_response = self._get_cart_data(order)
@@ -255,13 +280,10 @@ class TojiProductAPI(http.Controller):
         Obtiene el carrito actual del usuario.
         """
         try:
-            # Obtener el website actual
-            try:
-                website = request.env['website'].sudo().get_current_website()
-            except:
-                website = request.env['website'].sudo().search([], limit=1)
+            # Obtener orden de la sesión
+            sale_order_id = request.session.get('sale_order_id')
             
-            if not website:
+            if not sale_order_id:
                 response_data = {
                     'success': True,
                     'cart': {
@@ -277,10 +299,8 @@ class TojiProductAPI(http.Controller):
                 headers = {'Content-Type': 'application/json'}
                 return request.make_response(json.dumps(response_data), headers=headers)
             
-            # Obtener sin crear para no generar órdenes vacías
-            order = website.sale_get_order(force_create=False)
-            
-            if not order:
+            order = request.env['sale.order'].sudo().browse(sale_order_id)
+            if not order.exists():
                 response_data = {
                     'success': True,
                     'cart': {
@@ -413,24 +433,20 @@ class TojiProductAPI(http.Controller):
                 headers = {'Content-Type': 'application/json'}
                 return request.make_response(json.dumps(response_data), headers=headers)
             
-            # Obtener el website actual
-            try:
-                website = request.env['website'].sudo().get_current_website()
-            except:
-                website = request.env['website'].sudo().search([], limit=1)
-            
-            if not website:
-                response_data = {'success': False, 'error': 'No hay website'}
-                headers = {'Content-Type': 'application/json'}
-                return request.make_response(json.dumps(response_data), headers=headers)
-            
-            order = website.sale_get_order(force_create=False)
-            
-            if not order:
+            # Obtener orden de la sesión
+            sale_order_id = request.session.get('sale_order_id')
+            if not sale_order_id:
                 response_data = {'success': False, 'error': 'No hay carrito activo'}
                 headers = {'Content-Type': 'application/json'}
                 return request.make_response(json.dumps(response_data), headers=headers)
             
+            order = request.env['sale.order'].sudo().browse(sale_order_id)
+            if not order.exists():
+                response_data = {'success': False, 'error': 'No hay carrito activo'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
+            
+            # Eliminar línea
             line = request.env['sale.order.line'].sudo().browse(int(line_id))
             if line.exists() and line.order_id.id == order.id:
                 line.unlink()
@@ -458,21 +474,15 @@ class TojiProductAPI(http.Controller):
         Confirma y finaliza el pedido de compra actual.
         """
         try:
-            # Obtener el website actual
-            try:
-                website = request.env['website'].sudo().get_current_website()
-            except:
-                website = request.env['website'].sudo().search([], limit=1)
-            
-            if not website:
-                response_data = {'success': False, 'error': 'No hay website'}
+            # Obtener orden de la sesión
+            sale_order_id = request.session.get('sale_order_id')
+            if not sale_order_id:
+                response_data = {'success': False, 'error': 'No hay carrito para confirmar'}
                 headers = {'Content-Type': 'application/json'}
                 return request.make_response(json.dumps(response_data), headers=headers)
             
-            # Obtener carrito actual sin crear uno nuevo
-            order = website.sale_get_order(force_create=False)
-            
-            if not order:
+            order = request.env['sale.order'].sudo().browse(sale_order_id)
+            if not order.exists():
                 response_data = {'success': False, 'error': 'No hay carrito para confirmar'}
                 headers = {'Content-Type': 'application/json'}
                 return request.make_response(json.dumps(response_data), headers=headers)
