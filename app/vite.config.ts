@@ -5,15 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    port: 5173,
+    strictPort: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:8069',  // Cambia 8069 por el puerto real de Odoo
+        target: 'http://localhost:8069',
         changeOrigin: true,
         rewrite: (path) => path,
-        headers: {
-          'Origin': 'http://localhost:8069',
-        }
-      }
+      },
     }
   }
 })

@@ -55,8 +55,10 @@ function Product() {
       })
       .then((data: any) => {
         console.log('API Response:', data)
-        // Con type='json' en Odoo, la respuesta viene envuelta en jsonrpc
-        const result = data.result || data
+        
+        // La respuesta ahora es directa, NO envuelta en JSONRPC
+        const result = data  // Sin .result porque type='http' retorna directo
+        
         if (result.success && result.product) {
           setProduct(result.product)
         } else {
@@ -78,20 +80,23 @@ function Product() {
     try {
       setAddingToCart(true)
 
-      // Hacer POST a /shop/cart/update_json (ruta nativa de Odoo)
-      const formData = new URLSearchParams()
-      formData.append('product_id', product.id.toString())
-      formData.append('add_qty', quantity.toString())
-
-      const response = await fetch('/shop/cart/update_json', {
+      // Usar el endpoint personalizado /api/toji/cart/add
+      // Este endpoint está definido en controler_product.py
+      const response = await fetch('/api/toji/cart/add', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: formData.toString(),
+        body: JSON.stringify({
+          product_id: product.id,
+          add_qty: quantity,
+        }),
       })
 
-      if (response.ok) {
+      const data = await response.json()
+
+      if (data.success) {
         // Éxito: Mostrar Toast y resetear cantidad
         if (window.showToast) {
           window.showToast(
@@ -102,7 +107,7 @@ function Product() {
         }
         setQuantity(1)
       } else {
-        throw new Error(`Error HTTP: ${response.status}`)
+        throw new Error(data.error || 'Error al añadir al carrito')
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error desconocido'

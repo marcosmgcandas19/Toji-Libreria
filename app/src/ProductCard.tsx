@@ -20,31 +20,70 @@ function ProductCard({ id, nombre, precio, imagen }: ProductCardProps) {
     try {
       setAddingToCart(true)
 
-      const formData = new URLSearchParams()
-      formData.append('product_id', id.toString())
-      formData.append('add_qty', '1')
+      console.log('🛒 [DEBUG] Iniciando POST /api/toji/cart/add')
+      console.log('   Body:', { product_id: id, add_qty: 1 })
 
-      const response = await fetch('/shop/cart/update_json', {
+      const response = await fetch('/api/toji/cart/add', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: formData.toString(),
+        body: JSON.stringify({
+          product_id: id,
+          add_qty: 1,
+        }),
       })
 
-      if (response.ok) {
+      console.log('📡 Response status:', response.status)
+      console.log('📡 Response headers:', {
+        'content-type': response.headers.get('content-type'),
+      })
+
+      // Verificar HTTP status
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ HTTP Error:', response.status, errorText)
+        throw new Error(
+          `Error HTTP ${response.status}: ${errorText || response.statusText}`
+        )
+      }
+
+      // Parsear respuesta JSON (JSON directo, sin JSONRPC)
+      let data
+      try {
+        data = await response.json()
+        console.log('✅ Response JSON:', data)
+      } catch (parseError) {
+        console.error('❌ Error parsing JSON:', parseError)
+        throw new Error('Respuesta inválida del servidor')
+      }
+
+      // Verificar si fue exitoso
+      if (data.success) {
+        console.log('✅ ¡Producto añadido al carrito!')
         if (window.showToast) {
-          window.showToast(`${nombre} añadido al carrito`, 'success', 3000)
+          window.showToast(
+            `${nombre} añadido al carrito`,
+            'success',
+            3000
+          )
         }
       } else {
-        throw new Error(`Error HTTP: ${response.status}`)
+        const errorMsg = data.error || 'Error desconocido'
+        console.error('❌ API Error:', errorMsg)
+        throw new Error(errorMsg)
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      console.error('❌ Error al añadir al carrito:', errorMsg)
+      console.error('❌ [CATCH] Error al añadir:', errorMsg)
 
       if (window.showToast) {
-        window.showToast(`Error al añadir al carrito`, 'error', 4000)
+        window.showToast(
+          `Error: ${errorMsg}`,
+          'error',
+          4000
+        )
       }
     } finally {
       setAddingToCart(false)

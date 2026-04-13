@@ -178,131 +178,157 @@ class TojiProductAPI(http.Controller):
 
     # ==================== ENDPOINTS DEL CARRITO ====================
 
-    @http.route('/api/toji/cart/add', auth='public', type='json', methods=['POST'])
+    @http.route('/api/toji/cart/add', auth='public', type='http', csrf=False, methods=['POST'])
     def add_to_cart(self, **kwargs):
         """
         Añade un producto al carrito o modifica su cantidad.
-        
-        Este endpoint utiliza los métodos nativos de website_sale para:
-        - Gestionar automáticamente la sesión del usuario
-        - Crear un sale.order si no existe
-        - Añadir o actualizar sale.order.line
-        
-        Parámetros esperados (JSON POST):
-        - product_id (int, requerido): ID del producto a añadir
-        - add_qty (int, opcional): Cantidad a añadir (aumenta cantidad existente)
-        - set_qty (int, opcional): Cantidad exacta (reemplaza cantidad existente)
-        
-        Returns:
-            JSON con el estado actualizado del carrito
         """
         try:
-            product_id = kwargs.get('product_id')
-            add_qty = kwargs.get('add_qty', 0)
-            set_qty = kwargs.get('set_qty')
+            import json as json_module
+            
+            # Parsear JSON del body
+            request_data = {}
+            try:
+                body = request.httprequest.data
+                if body:
+                    request_data = json_module.loads(body)
+            except:
+                pass
+            
+            product_id = request_data.get('product_id')
+            add_qty = request_data.get('add_qty', 1)
+            set_qty = request_data.get('set_qty')
+            
+            print(f"[DEBUG] add_to_cart recibido: product_id={product_id}, add_qty={add_qty}")
             
             if not product_id:
-                return {
-                    'success': False,
-                    'error': 'product_id es requerido'
-                }
+                response_data = {'success': False, 'error': 'product_id es requerido'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
             
-            # Obtener o crear el pedido de venta de la sesión actual
-            order = request.website.sale_get_order(force_create=True)
-            
-            # Obtener el producto
+            # Validar que el producto existe
             product = request.env['product.product'].sudo().browse(int(product_id))
             if not product.exists():
-                return {
-                    'success': False,
-                    'error': f'Producto con ID {product_id} no existe'
-                }
+                response_data = {'success': False, 'error': f'Producto con ID {product_id} no existe'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
             
-            # Buscar si la línea del producto ya existe en el carrito
-            existing_line = order.order_line.filtered(
-                lambda l: l.product_id.id == int(product_id)
-            )
+            # Obtener el website actual
+            try:
+                website = request.env['website'].sudo().get_current_website()
+            except:
+                website = request.env['website'].sudo().search([], limit=1)
             
-            if existing_line:
-                if set_qty is not None:
-                    # Establecer cantidad exacta
-                    existing_line.write({'product_uom_qty': float(set_qty)})
-                elif add_qty > 0:
-                    # Añadir cantidad a la existente
-                    existing_line.write({
-                        'product_uom_qty': existing_line.product_uom_qty + float(add_qty)
-                    })
+            if not website:
+                response_data = {'success': False, 'error': 'No hay website configurado'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
+            
+            # Obtener o crear el carrito
+            order = website.sale_get_order(force_create=True)
+            if not order:
+                raise Exception("No se pudo crear o recuperar el pedido de venta")
+            
+            # Actualizar carrito
+            if set_qty is not None:
+                order._cart_update(product_id=int(product_id), set_qty=float(set_qty))
             else:
-                # Crear nueva línea si no existe
-                qty = float(set_qty) if set_qty is not None else float(add_qty)
-                if qty > 0:
-                    order.write({
-                        'order_line': [(0, 0, {
-                            'product_id': int(product_id),
-                            'product_uom_qty': qty,
-                        })]
-                    })
+                order._cart_update(product_id=int(product_id), add_qty=float(add_qty))
             
             # Retornar carrito actualizado
-            return self._get_cart_data(order)
+            cart_response = self._get_cart_data(order)
+            headers = {'Content-Type': 'application/json'}
+            return request.make_response(json.dumps(cart_response), headers=headers)
             
         except Exception as e:
-            print(f"[DEBUG] Error en add_to_cart: {str(e)}")
+            print(f"[ERROR] Error en add_to_cart: {str(e)}")
             import traceback
             traceback.print_exc()
             
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            response_data = {'success': False, 'error': str(e)}
+            headers = {'Content-Type': 'application/json'}
+            return request.make_response(json.dumps(response_data), headers=headers)
 
-    @http.route('/api/toji/cart', auth='public', type='json', methods=['GET'])
+    @http.route('/api/toji/cart', auth='public', type='http', methods=['GET'])
     def get_cart(self, **kwargs):
         """
         Obtiene el carrito actual del usuario.
-        
-        Utiliza request.website.sale_get_order() para recuperar el pedido
-        asociado a la sesión actual del usuario.
-        
-        Returns:
-            JSON con los datos del carrito o carrito vacío si no existe
         """
         try:
-            order = request.website.sale_get_order()
+            # Obtener el website actual
+            try:
+                website = request.env['website'].sudo().get_current_website()
+            except:
+                website = request.env['website'].sudo().search([], limit=1)
             
-            if not order:
-                return {
+            if not website:
+                response_data = {
                     'success': True,
                     'cart': {
                         'order_id': None,
                         'lines': [],
+                        'subtotal': 0.0,
+                        'tax_total': 0.0,
                         'total': 0.0,
                         'total_items': 0,
                         'currency': 'USD'
                     }
                 }
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
             
-            return self._get_cart_data(order)
+            # Obtener sin crear para no generar órdenes vacías
+            order = website.sale_get_order(force_create=False)
+            
+            if not order:
+                response_data = {
+                    'success': True,
+                    'cart': {
+                        'order_id': None,
+                        'lines': [],
+                        'subtotal': 0.0,
+                        'tax_total': 0.0,
+                        'total': 0.0,
+                        'total_items': 0,
+                        'currency': 'USD'
+                    }
+                }
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
+            
+            cart_response = self._get_cart_data(order)
+            headers = {'Content-Type': 'application/json'}
+            return request.make_response(json.dumps(cart_response), headers=headers)
             
         except Exception as e:
             print(f"[DEBUG] Error en get_cart: {str(e)}")
             import traceback
             traceback.print_exc()
             
-            return {
+            response_data = {
                 'success': False,
-                'error': str(e)
+                'error': str(e),
+                'cart': None
             }
+            headers = {'Content-Type': 'application/json'}
+            return request.make_response(json.dumps(response_data), headers=headers)
 
     def _get_cart_data(self, order):
         """
         Helper method para construir la respuesta del carrito.
         
+        Transforma el registro de sale.order en una estructura JSON consistente
+        para consumo por el frontend React, incluyendo:
+        - Detalles de las líneas del pedido (producto, cantidad, precios)
+        - URLs de imágenes con fallback automático
+        - Totales (subtotal, impuestos, total)
+        - Información de moneda
+        
         Args:
-            order: Registro de sale.order
+            order: Registro de sale.order (puede ser None o vacío)
             
         Returns:
-            JSON formateado con datos del carrito
+            Dict con estructura estándar de carrito para JSON response
         """
         if not order or not order.order_line:
             return {
@@ -310,6 +336,8 @@ class TojiProductAPI(http.Controller):
                 'cart': {
                     'order_id': None,
                     'lines': [],
+                    'subtotal': 0.0,
+                    'tax_total': 0.0,
                     'total': 0.0,
                     'total_items': 0,
                     'currency': 'USD'
@@ -321,12 +349,15 @@ class TojiProductAPI(http.Controller):
         for line in order.order_line:
             product = line.product_id
             
-            # Obtener URL de imagen
+            # Obtener URL de imagen con fallback
             image_url = ''
-            if product.image_url:
-                image_url = product.image_url
+            # Prioridad: product.image_url > product.image_1920 > template image
+            if product.product_tmpl_id.image_url:
+                image_url = product.product_tmpl_id.image_url
             elif product.image_1920:
                 image_url = f"/web/image/product.product/{product.id}/image_1920"
+            elif product.product_tmpl_id.image_1920:
+                image_url = f"/web/image/product.template/{product.product_tmpl_id.id}/image_1920"
             
             lines_data.append({
                 'id': line.id,
@@ -335,11 +366,14 @@ class TojiProductAPI(http.Controller):
                 'quantity': float(line.product_uom_qty),
                 'price_unit': float(line.price_unit),
                 'price_subtotal': float(line.price_subtotal),
+                'tax_amount': float(line.tax_id.mapped('amount') and sum(line.tax_id.mapped('amount')) or 0),
                 'image_url': image_url,
             })
         
         # Calcular totales
         total_items = sum(float(line.product_uom_qty) for line in order.order_line)
+        subtotal = float(order.amount_untaxed)
+        tax_total = float(order.amount_tax)
         total = float(order.amount_total)
         
         return {
@@ -347,115 +381,141 @@ class TojiProductAPI(http.Controller):
             'cart': {
                 'order_id': order.id,
                 'lines': lines_data,
+                'subtotal': subtotal,
+                'tax_total': tax_total,
                 'total': total,
                 'total_items': total_items,
                 'currency': order.currency_id.name if order.currency_id else 'USD'
             }
         }
 
-    @http.route('/api/toji/cart/remove', auth='public', type='json', methods=['POST'])
+    @http.route('/api/toji/cart/remove', auth='public', type='http', csrf=False, methods=['POST'])
     def remove_from_cart(self, **kwargs):
         """
-        Elimina una línea del carrito.
-        
-        Parámetros esperados (JSON POST):
-        - line_id (int, requerido): ID de sale.order.line a eliminar
-        
-        Returns:
-            JSON con el carrito actualizado
+        Elimina una línea (item) del carrito.
         """
         try:
-            line_id = kwargs.get('line_id')
+            import json as json_module
+            
+            # Parsear JSON del body
+            request_data = {}
+            try:
+                body = request.httprequest.data
+                if body:
+                    request_data = json_module.loads(body)
+            except:
+                pass
+            
+            line_id = request_data.get('line_id')
             
             if not line_id:
-                return {
-                    'success': False,
-                    'error': 'line_id es requerido'
-                }
+                response_data = {'success': False, 'error': 'line_id es requerido'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
             
-            order = request.website.sale_get_order()
+            # Obtener el website actual
+            try:
+                website = request.env['website'].sudo().get_current_website()
+            except:
+                website = request.env['website'].sudo().search([], limit=1)
+            
+            if not website:
+                response_data = {'success': False, 'error': 'No hay website'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
+            
+            order = website.sale_get_order(force_create=False)
             
             if not order:
-                return {
-                    'success': False,
-                    'error': 'No hay carrito activo'
-                }
+                response_data = {'success': False, 'error': 'No hay carrito activo'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
             
             line = request.env['sale.order.line'].sudo().browse(int(line_id))
             if line.exists() and line.order_id.id == order.id:
                 line.unlink()
             else:
-                return {
-                    'success': False,
-                    'error': f'Línea {line_id} no encontrada en el carrito'
-                }
+                response_data = {'success': False, 'error': f'Línea {line_id} no encontrada'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
             
-            return self._get_cart_data(order)
+            cart_response = self._get_cart_data(order)
+            headers = {'Content-Type': 'application/json'}
+            return request.make_response(json.dumps(cart_response), headers=headers)
             
         except Exception as e:
-            print(f"[DEBUG] Error en remove_from_cart: {str(e)}")
+            print(f"[ERROR] Error en remove_from_cart: {str(e)}")
             import traceback
             traceback.print_exc()
             
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            response_data = {'success': False, 'error': str(e)}
+            headers = {'Content-Type': 'application/json'}
+            return request.make_response(json.dumps(response_data), headers=headers)
 
-    @http.route('/api/toji/cart/confirm', auth='public', type='json', methods=['POST'])
+    @http.route('/api/toji/cart/confirm', auth='public', type='http', csrf=False, methods=['POST'])
     def confirm_order(self, **kwargs):
         """
-        Confirma el pedido de compra actual.
-        
-        Este endpoint:
-        1. Recupera el pedido actual de la sesión
-        2. Valida que tenga líneas
-        3. Ejecuta action_confirm() para cambiar estado a "Pedido de Venta"
-        4. Desvincula el pedido de la sesión para nuevas compras
-        
-        Returns:
-            JSON con los datos del pedido confirmado
+        Confirma y finaliza el pedido de compra actual.
         """
         try:
-            order = request.website.sale_get_order()
+            # Obtener el website actual
+            try:
+                website = request.env['website'].sudo().get_current_website()
+            except:
+                website = request.env['website'].sudo().search([], limit=1)
+            
+            if not website:
+                response_data = {'success': False, 'error': 'No hay website'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
+            
+            # Obtener carrito actual sin crear uno nuevo
+            order = website.sale_get_order(force_create=False)
             
             if not order:
-                return {
-                    'success': False,
-                    'error': 'No hay carrito para confirmar'
-                }
+                response_data = {'success': False, 'error': 'No hay carrito para confirmar'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
             
             if not order.order_line:
-                return {
-                    'success': False,
-                    'error': 'El carrito está vacío, no se puede confirmar'
-                }
+                response_data = {'success': False, 'error': 'El carrito está vacío'}
+                headers = {'Content-Type': 'application/json'}
+                return request.make_response(json.dumps(response_data), headers=headers)
             
-            print(f"[DEBUG] Confirmando pedido: {order.name}")
+            print(f"[DEBUG] Confirmando pedido: {order.name}, estado: {order.state}")
             
-            # Confirmar el pedido
-            order.action_confirm()
+            try:
+                order.action_confirm()
+            except Exception as e:
+                print(f"[ERROR] Error al confirmar: {str(e)}")
+                raise Exception(f"Error al confirmar: {str(e)}")
             
-            print(f"[DEBUG] Pedido confirmado: {order.name}, estado: {order.state}")
+            print(f"[DEBUG] Pedido confirmado: {order.name}, nuevo estado: {order.state}")
             
-            # Desvincularlo de la sesión
+            # Guardar datos antes de desvincularse
+            order_id = order.id
+            order_name = order.name
+            order_total = float(order.amount_total)
+            
+            # Desvincularse de la sesión
             request.session.pop('sale_order_id', None)
             
-            return {
+            response_data = {
                 'success': True,
-                'order_id': order.id,
-                'order_number': order.name,
-                'total': float(order.amount_total),
-                'message': f'Pedido {order.name} confirmado exitosamente'
+                'order_id': order_id,
+                'order_number': order_name,
+                'total': order_total,
+                'message': f'Pedido {order_name} confirmado exitosamente'
             }
+            headers = {'Content-Type': 'application/json'}
+            return request.make_response(json.dumps(response_data), headers=headers)
             
         except Exception as e:
-            print(f"[DEBUG] Error en confirm_order: {str(e)}")
+            print(f"[ERROR] Error en confirm_order: {str(e)}")
             import traceback
             traceback.print_exc()
             
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            response_data = {'success': False, 'error': str(e)}
+            headers = {'Content-Type': 'application/json'}
+            return request.make_response(json.dumps(response_data), headers=headers)
 
