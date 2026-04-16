@@ -33,7 +33,6 @@ function Catalog() {
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
   const minPrice = searchParams.get('min_price') ?? ''
   const maxPrice = searchParams.get('max_price') ?? ''
-  const categoryId = searchParams.get('category_id') ?? ''
   const authorIdsParam = searchParams.get('author_ids') ?? ''
 
   const selectedAuthorIds = useMemo(() => {
@@ -48,9 +47,8 @@ function Catalog() {
   const initialFilters = useMemo(() => ({
     min_price: minPrice ? Number(minPrice) : null,
     max_price: maxPrice ? Number(maxPrice) : null,
-    category_id: categoryId ? Number(categoryId) : null,
     author_ids: selectedAuthorIds,
-  }), [minPrice, maxPrice, categoryId, selectedAuthorIds])
+  }), [minPrice, maxPrice, selectedAuthorIds])
 
   useEffect(() => {
     const fetchCatalog = async () => {
@@ -63,7 +61,6 @@ function Catalog() {
 
       if (minPrice) params.set('min_price', minPrice)
       if (maxPrice) params.set('max_price', maxPrice)
-      if (categoryId) params.set('category_id', categoryId)
       if (selectedAuthorIds.length > 0) params.set('author_ids', selectedAuthorIds.join(','))
 
       try {
@@ -96,12 +93,11 @@ function Catalog() {
     }
 
     fetchCatalog()
-  }, [page, minPrice, maxPrice, categoryId, authorIdsParam])
+  }, [page, minPrice, maxPrice, authorIdsParam])
 
   const handleFiltersChange = useCallback((filters: {
     min_price?: number | null
     max_price?: number | null
-    category_id?: number | null
     author_ids?: number[]
   }) => {
     const params = new URLSearchParams()
@@ -111,9 +107,6 @@ function Catalog() {
     }
     if (filters.max_price != null) {
       params.set('max_price', String(filters.max_price))
-    }
-    if (filters.category_id != null) {
-      params.set('category_id', String(filters.category_id))
     }
     if (filters.author_ids && filters.author_ids.length > 0) {
       params.set('author_ids', filters.author_ids.join(','))
@@ -133,97 +126,105 @@ function Catalog() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto grid gap-8 xl:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="space-y-6">
-        <Filters onFiltersChange={handleFiltersChange} initialFilters={initialFilters} />
-      </aside>
+    <div className="min-h-screen bg-linear-to-b from-slate-50 to-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
+          <aside className="order-2 lg:order-1">
+            <Filters onFiltersChange={handleFiltersChange} initialFilters={initialFilters} />
+          </aside>
 
-      <section className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold text-slate-900">Catálogo</h1>
-            <p className="text-sm text-slate-500">Filtra y navega entre todos los productos publicados.</p>
-          </div>
-          <div className="flex flex-col items-start gap-3 sm:items-end">
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-400 hover:text-blue-700"
-            >
-              Volver al inicio
-            </button>
-            <div className="text-sm text-slate-500">
-              Página {page} de {pageCount}. {totalItems} productos encontrados.
-            </div>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-16 text-center text-slate-500">
-            Cargando catálogo…
-          </div>
-        ) : error ? (
-          <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-center text-red-700">
-            {error}
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-              {products.length > 0 ? (
-                products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    id={product.id}
-                    nombre={product.name}
-                    precio={product.price}
-                    imagen={product.image_url}
-                  />
-                ))
-              ) : (
-                <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center text-slate-600 sm:col-span-2 xl:col-span-3">
-                  No hay productos que coincidan con los filtros.
+          <section className="order-1 lg:order-2 space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-slate-200">
+              <div className="space-y-3">
+                <h1 className="text-4xl font-bold text-slate-900">Catálogo</h1>
+                <p className="text-base text-slate-600">Explora y filtra todos los productos disponibles</p>
+              </div>
+              <div className="flex flex-col items-start gap-3 sm:items-end">
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  ← Volver al inicio
+                </button>
+                <div className="text-sm font-medium text-slate-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+                  Página {page} de {pageCount} • {totalItems} productos
                 </div>
-              )}
+              </div>
             </div>
 
-            {pageCount > 1 && (
-              <PaginationRoot className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-4">
-                <PaginationContent className="flex flex-wrap items-center justify-center gap-2">
-                  <PaginationPrevious
-                    onClick={() => goToPage(Math.max(1, page - 1))}
-                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
-                  >
-                    Anterior
-                  </PaginationPrevious>
+            {loading ? (
+              <div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-20 text-center">
+                <div className="inline-block mb-4">
+                  <div className="animate-spin h-12 w-12 border-4 border-slate-300 border-t-blue-600 rounded-full"></div>
+                </div>
+                <p className="text-slate-600 font-medium text-lg">Cargando catálogo…</p>
+              </div>
+            ) : error ? (
+              <div className="rounded-xl border-2 border-red-300 bg-red-50 p-8 text-center">
+                <p className="text-red-700 font-semibold text-base">{error}</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {products.length > 0 ? (
+                    products.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        id={product.id}
+                        nombre={product.name}
+                        precio={product.price}
+                        imagen={product.image_url}
+                      />
+                    ))
+                  ) : (
+                    <div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-16 text-center sm:col-span-2 lg:col-span-3">
+                      <p className="text-slate-600 font-semibold text-lg mb-2">No hay productos</p>
+                      <p className="text-slate-500 text-sm">Intenta ajustar los filtros o vuelve más tarde.</p>
+                    </div>
+                  )}
+                </div>
 
-                  {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => (
-                    <PaginationItem key={pageNumber}>
-                      <PaginationLink
-                        onClick={() => goToPage(pageNumber)}
-                        isActive={pageNumber === page}
-                        className={`rounded-lg border px-4 py-2 text-sm ${pageNumber === page ? 'border-blue-500 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+                {pageCount > 1 && (
+                  <PaginationRoot className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <PaginationContent className="flex flex-wrap items-center justify-center gap-2">
+                      <PaginationPrevious
+                        onClick={() => goToPage(Math.max(1, page - 1))}
+                        className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-all duration-200"
                       >
-                        {pageNumber}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
+                        ← Anterior
+                      </PaginationPrevious>
 
-                  <PaginationNext
-                    onClick={() => goToPage(Math.min(pageCount, page + 1))}
-                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
-                  >
-                    Siguiente
-                  </PaginationNext>
-                </PaginationContent>
+                      {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => (
+                        <PaginationItem key={pageNumber}>
+                          <PaginationLink
+                            onClick={() => goToPage(pageNumber)}
+                            isActive={pageNumber === page}
+                            className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${pageNumber === page ? 'border-blue-600 bg-blue-600 text-white shadow-md' : 'border-slate-300 bg-white text-slate-700 hover:border-blue-400 hover:bg-blue-50'}`}
+                          >
+                            {pageNumber}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
 
-                <PaginationSummary className="text-center text-sm text-slate-500">
-                  Mostrando {products.length} de {totalItems} productos
-                </PaginationSummary>
-              </PaginationRoot>
+                      <PaginationNext
+                        onClick={() => goToPage(Math.min(pageCount, page + 1))}
+                        className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-all duration-200"
+                      >
+                        Siguiente →
+                      </PaginationNext>
+                    </PaginationContent>
+
+                    <PaginationSummary className="text-center text-sm font-medium text-slate-600 py-2">
+                      Mostrando {products.length} de {totalItems} productos
+                    </PaginationSummary>
+                  </PaginationRoot>
+                )}
+              </>
             )}
-          </>
-        )}
-      </section>
+          </section>
+        </div>
+      </div>
     </div>
   )
 }
