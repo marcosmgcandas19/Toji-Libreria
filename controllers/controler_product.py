@@ -7,7 +7,7 @@ import json
 class TojiProductAPI(http.Controller):
     """API Controller para productos publicados en web"""
 
-    @http.route('/api/toji/products', auth='public', type='http')
+    @http.route('/api/toji/products', auth='public', type='http', methods=['GET'], cors='*')
     def get_products(self, **kwargs):
         """
         Retorna un arreglo JSON de libros publicados en web.
@@ -80,12 +80,12 @@ class TojiProductAPI(http.Controller):
                 headers=headers
             )
 
-    @http.route('/api/toji/products/<int:product_id>', auth='public', type='json')
+    @http.route('/api/toji/products/<int:product_id>', auth='public', type='http', methods=['GET'], cors='*')
     def get_product_detail(self, product_id, **kwargs):
         """
         Retorna los detalles de un producto individual publicado en web.
         
-        URL: GET/POST /api/toji/products/<product_id>
+        URL: GET /api/toji/products/<product_id>
         
         Args:
             product_id (int): ID del producto a obtener
@@ -105,7 +105,7 @@ class TojiProductAPI(http.Controller):
             print(f"\n[DEBUG] Buscando producto con ID: {product_id}, tipo: {type(product_id)}")
             
             # Buscar el producto que coincida con el ID y esté publicado
-            product = request.env['product.template'].sudo().search([
+            product = request.env['product.template'].search([
                 ('id', '=', product_id),
                 ('website_published', '=', True)
             ], limit=1)
@@ -115,7 +115,7 @@ class TojiProductAPI(http.Controller):
             # Si no encuentra con website_published, buscar sin esa condición para debuguear
             if not product:
                 print(f"[DEBUG] No encontrado con website_published=True, buscando sin esa condición...")
-                product_debug = request.env['product.template'].sudo().search([
+                product_debug = request.env['product.template'].search([
                     ('id', '=', product_id)
                 ], limit=1)
                 if product_debug:
@@ -125,11 +125,16 @@ class TojiProductAPI(http.Controller):
             
             # Validar que el producto existe
             if not product:
-                return {
+                response_data = {
                     'success': False,
                     'error': 'Producto no encontrado o no publicado',
                     'product': None
                 }
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                }
+                return request.make_response(json.dumps(response_data), headers=headers)
             
             # Obtener URL de imagen
             image_url = ''
@@ -160,21 +165,31 @@ class TojiProductAPI(http.Controller):
             
             print(f"[DEBUG] Retornando producto exitosamente: {product.name}")
             
-            return {
+            response_data = {
                 'success': True,
                 'product': product_data
             }
+            headers = {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+            return request.make_response(json.dumps(response_data), headers=headers)
             
         except Exception as e:
             print(f"[DEBUG] Error en get_product_detail: {str(e)}")
             import traceback
             traceback.print_exc()
             
-            return {
+            response_data = {
                 'success': False,
                 'error': str(e),
                 'product': None
             }
+            headers = {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+            return request.make_response(json.dumps(response_data), headers=headers)
 
     @http.route('/api/toji/search', auth='public', type='http', methods=['GET'], cors='*')
     def search_products(self, query=None, **kwargs):

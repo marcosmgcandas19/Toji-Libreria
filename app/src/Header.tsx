@@ -14,14 +14,17 @@ function Header() {
 
       <div className="grid grid-cols-3 gap-8 items-center px-2 py-4 max-w-7xl mx-auto">
         {/* Logo - Izquierda */}
-        <div className="flex items-center">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center hover:opacity-80 transition cursor-pointer"
+          title="Ir a inicio"
+        >
           <img
             src="/logo.svg"
             alt="Toji Store Logo"
             className="w-12 h-12 mr-2"
           />
-          
-        </div>
+        </button>
 
         {/* Navegación - Centro */}
         <nav className="flex justify-center gap-10">

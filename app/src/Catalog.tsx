@@ -27,7 +27,7 @@ function Catalog() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const pageSize = 12
+  const pageSize = 9
 
   const rawPage = Number(searchParams.get('page') ?? '')
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1
@@ -100,20 +100,28 @@ function Catalog() {
     max_price?: number | null
     author_ids?: number[]
   }) => {
-    const params = new URLSearchParams()
+    setSearchParams((prevParams) => {
+      const params = new URLSearchParams(prevParams)
 
-    if (filters.min_price != null) {
-      params.set('min_price', String(filters.min_price))
-    }
-    if (filters.max_price != null) {
-      params.set('max_price', String(filters.max_price))
-    }
-    if (filters.author_ids && filters.author_ids.length > 0) {
-      params.set('author_ids', filters.author_ids.join(','))
-    }
+      if (filters.min_price != null) {
+        params.set('min_price', String(filters.min_price))
+      } else {
+        params.delete('min_price')
+      }
+      if (filters.max_price != null) {
+        params.set('max_price', String(filters.max_price))
+      } else {
+        params.delete('max_price')
+      }
+      if (filters.author_ids && filters.author_ids.length > 0) {
+        params.set('author_ids', filters.author_ids.join(','))
+      } else {
+        params.delete('author_ids')
+      }
 
-    params.set('page', '1')
-    setSearchParams(params)
+      params.set('page', '1')
+      return params
+    })
   }, [setSearchParams])
 
   const pageCount = Math.max(1, Math.ceil(totalItems / pageSize))
@@ -123,6 +131,8 @@ function Catalog() {
     const params = new URLSearchParams(searchParams)
     params.set('page', String(nextPage))
     setSearchParams(params)
+    // Scroll to top cuando se cambia de página
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
@@ -134,24 +144,7 @@ function Catalog() {
           </aside>
 
           <section className="order-1 lg:order-2 space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-slate-200">
-              <div className="space-y-3">
-                <h1 className="text-4xl font-bold text-slate-900">Catálogo</h1>
-                <p className="text-base text-slate-600">Explora y filtra todos los productos disponibles</p>
-              </div>
-              <div className="flex flex-col items-start gap-3 sm:items-end">
-                <button
-                  type="button"
-                  onClick={() => navigate('/')}
-                  className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                >
-                  ← Volver al inicio
-                </button>
-                <div className="text-sm font-medium text-slate-700 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-                  Página {page} de {pageCount} • {totalItems} productos
-                </div>
-              </div>
-            </div>
+            
 
             {loading ? (
               <div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-20 text-center">
@@ -166,7 +159,7 @@ function Catalog() {
               </div>
             ) : (
               <>
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {products.length > 0 ? (
                     products.map((product) => (
                       <ProductCard
@@ -190,7 +183,8 @@ function Catalog() {
                     <PaginationContent className="flex flex-wrap items-center justify-center gap-2">
                       <PaginationPrevious
                         onClick={() => goToPage(Math.max(1, page - 1))}
-                        className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-all duration-200"
+                        isDisabled={page === 1}
+                        className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${page === 1 ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer'}`}
                       >
                         ← Anterior
                       </PaginationPrevious>
@@ -200,7 +194,7 @@ function Catalog() {
                           <PaginationLink
                             onClick={() => goToPage(pageNumber)}
                             isActive={pageNumber === page}
-                            className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${pageNumber === page ? 'border-blue-600 bg-blue-600 text-white shadow-md' : 'border-slate-300 bg-white text-slate-700 hover:border-blue-400 hover:bg-blue-50'}`}
+                            className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer ${pageNumber === page ? 'border-blue-600 bg-blue-600 text-white shadow-md' : 'border-slate-300 bg-white text-slate-700 hover:border-blue-400 hover:bg-blue-50'}`}
                           >
                             {pageNumber}
                           </PaginationLink>
@@ -208,8 +202,9 @@ function Catalog() {
                       ))}
 
                       <PaginationNext
-                        onClick={() => goToPage(Math.min(pageCount, page + 1))}
-                        className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-all duration-200"
+                        onClick={() => page < pageCount && goToPage(Math.min(pageCount, page + 1))}
+                        isDisabled={page >= pageCount}
+                        className={`rounded-lg border px-4 py-2.5 text-sm font-medium transition-all duration-200 ${page >= pageCount ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer'}`}
                       >
                         Siguiente →
                       </PaginationNext>

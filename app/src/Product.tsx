@@ -38,11 +38,10 @@ function Product() {
     setError(null)
 
     fetch(`/api/toji/products/${id}`, {
-      method: 'POST',
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({})
+        'Accept': 'application/json',
+      }
     })
       .then((response) => {
         console.log('Response status:', response.status)
