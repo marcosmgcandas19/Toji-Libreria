@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useCart } from './context/CartContext'
+import Search from './Search'
 
 function Header() {
   const navigate = useNavigate()
@@ -24,35 +25,21 @@ function Header() {
 
         {/* Navegación - Centro */}
         <nav className="flex justify-center gap-10">
-          <a href="#" className="hover:text-gray-300 transition font-medium text-sm">
+          <button onClick={() => navigate('/catalog')} className="hover:text-gray-300 transition font-medium text-sm">
             Catálogo
-          </a>
-          <a href="#" className="hover:text-gray-300 transition font-medium text-sm">
+          </button>
+          <button className="hover:text-gray-300 transition font-medium text-sm">
             Juguetes
-          </a>
-          <a href="#" className="hover:text-gray-300 transition font-medium text-sm">
+          </button>
+          <button className="hover:text-gray-300 transition font-medium text-sm">
             Papelería
-          </a>
+          </button>
         </nav>
 
         {/* Iconos - Derecha */}
         <div className="flex justify-end items-center gap-6">
           {/* Búsqueda */}
-          <button className="hover:text-gray-300 transition" title="Buscar">
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </button>
+          <Search />
 
           {/* Carrito */}
           <button onClick={() => navigate('/cart')} className="hover:text-gray-300 transition relative" title="Carrito">

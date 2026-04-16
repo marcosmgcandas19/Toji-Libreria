@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Header from './Header.tsx'
 import Footer from './Footer.tsx'
 import ProductCarousel from './ProductCarousel.tsx'
+import Catalog from './Catalog.tsx'
 import Product from './Product.tsx'
 import { ToastContainer } from './ToastContainer.tsx'
 import Cart from './Cart.tsx'
@@ -37,6 +38,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout children={<HomePage />} />} />
+          <Route path="/catalog" element={<Layout children={<Catalog />} />} />
           <Route path="/product/:id" element={<Layout children={<Product />} />} />
           <Route path="/cart" element={<Layout children={<Cart />} />} />
         </Routes>
