@@ -98,11 +98,17 @@ export interface RemoveFromCartParams {
 /**
  * Producto en la tienda
  */
+export interface Author {
+  id: number
+  name: string
+}
+
 export interface Product {
   id: number
   name: string
   price: number
   image_url: string
+  authors?: Author[]
 }
 
 /**
@@ -111,10 +117,7 @@ export interface Product {
 export interface ProductDetail extends Product {
   description: string
   synopsis: string
-  authors: Array<{
-    id: number
-    name: string
-  }>
+  authors: Author[]
   website_published: boolean
 }
 

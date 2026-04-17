@@ -201,7 +201,7 @@ class TojiProductAPI(http.Controller):
                 # Try real search
                 products = request.env['product.template'].search_read(
                     [('name', 'ilike', query), ('website_published', '=', True)],
-                    ['id', 'name', 'list_price', 'image_url'],
+                    ['id', 'name', 'list_price', 'image_url', 'author_ids'],
                     limit=10
                 )
                 # Format products
@@ -209,6 +209,14 @@ class TojiProductAPI(http.Controller):
                     product['price'] = product.pop('list_price', 0)
                     if not product.get('image_url') and product.get('id'):
                         product['image_url'] = f"/web/image/product.template/{product['id']}/image_1920"
+                    
+                    # Get author details
+                    author_ids = product.get('author_ids', [])
+                    authors = []
+                    if author_ids:
+                        author_records = request.env['res.partner'].search([('id', 'in', author_ids)])
+                        authors = [{'id': author.id, 'name': author.name} for author in author_records]
+                    product['authors'] = authors
                 
                 response_data = {
                     'success': True,
