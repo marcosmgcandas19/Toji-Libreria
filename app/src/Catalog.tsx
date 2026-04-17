@@ -128,9 +128,11 @@ function Catalog() {
   const navigate = useNavigate()
 
   const goToPage = (nextPage: number) => {
-    const params = new URLSearchParams(searchParams)
-    params.set('page', String(nextPage))
-    setSearchParams(params)
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev)
+      params.set('page', String(nextPage))
+      return params
+    })
     // Scroll to top cuando se cambia de página
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }

@@ -32,6 +32,13 @@ function Filters({ onFiltersChange, initialFilters }: FiltersProps) {
   
   // Control para no disparar onChange en el primer render
   const isFirstRenderRef = useRef(true)
+  // Referencia estable para la función de callback
+  const onFiltersChangeRef = useRef(onFiltersChange)
+
+  // Actualizar la referencia cuando cambia la función
+  useEffect(() => {
+    onFiltersChangeRef.current = onFiltersChange
+  }, [onFiltersChange])
 
   // 1. Cargar autores desde Odoo
   useEffect(() => {
@@ -100,11 +107,11 @@ function Filters({ onFiltersChange, initialFilters }: FiltersProps) {
         author_ids: selectedAuthors.map(Number),
       }
       console.log('[FILTERS] Disparando onFiltersChange:', filters)
-      onFiltersChange(filters)
+      onFiltersChangeRef.current(filters)
     }, 400) // Debounce de 400ms para no saturar a peticiones mientras escriben
 
     return () => clearTimeout(timer)
-  }, [minPrice, maxPrice, selectedAuthors, onFiltersChange])
+  }, [minPrice, maxPrice, selectedAuthors])
 
   const handleReset = () => {
     setMinPrice('')
